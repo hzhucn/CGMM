@@ -10,17 +10,19 @@ class MultinomialMixture:
         """
         self.C = c
         self.K = k
-        self.smoothing = 0.00000001  # Laplace smoothing
+        self.smoothing = ie-8  # Laplace smoothing
+
+        np.random.seed(seed=10)
 
         # Initialisation of the model's parameters.
         # Notice: the sum-to-1 requirement has been naively satisfied.
-        pr = np.random.uniform(size=self.C)
+        pr = np.random.uniform(size=self.C).astype(np.float32)
         pr = pr / np.sum(pr)
         self.prior = pr
 
         self.emission = np.empty((self.K, self.C))
         for i in range(0, self.C):
-            em = np.random.uniform(size=self.K)
+            em = np.random.uniform(size=self.K).astype(np.float32)
             em = em / np.sum(em)
             self.emission[:, i] = em
 
@@ -135,3 +137,4 @@ class MultinomialMixture:
         prediction_set[np.logical_not(chosen)], states[np.logical_not(chosen)] = self.generate(size)
 
         return prediction_set, states
+

@@ -9,24 +9,29 @@ def current_milli_time():
 class VStructure:
 
     def initParameters(self):
+
+        # For comparison with other implementations
+        # np.random.seed(seed=10)
+
         # Initialisation of the model's parameters.
         self.emission = np.empty((self.K, self.C))
         for i in range(0, self.C):
-            em = np.random.uniform(size=self.K)
+            em = np.random.uniform(size=self.K).astype(np.float32)
             em = em / np.sum(em)
             self.emission[:, i] = em
 
-        levS = np.random.uniform(size=self.L)  # layer Selector
+        levS = np.random.uniform(size=self.L).astype(np.float32) # layer Selector
         self.layerS = levS / np.sum(levS)
+
         self.arcS = np.empty((self.L, self.A))
         self.transition = np.empty((self.L, self.A, self.C, self.C2))
 
         for l in range(0, self.L):
-            arcDist = np.random.uniform(size=self.A)  # arc Selector
+            arcDist = np.random.uniform(size=self.A).astype(np.float32)  # arc Selector
             self.arcS[l, :] = arcDist / np.sum(arcDist)
             for a in range(0, self.A):
                 for j in range(0, self.C2):
-                    tr = np.random.uniform(size=self.C)
+                    tr = np.random.uniform(size=self.C).astype(np.float32)
                     self.transition[l, a, :, j] = tr/np.sum(tr)
 
     def __init__(self, c, c2, k, Lprec, a):
@@ -39,12 +44,12 @@ class VStructure:
         :param a: dimension of edges' alphabet, which goes from 0 to A-1
         """
         self.C = c
-        self.C2 = c2 + 1  # always consider the bottom state
+        self.C2 = c2
         self.K = k
         self.L = len(Lprec)
         self.A = a
         self.Lprec = Lprec  # indices must start from 1
-        self.smoothing = 0.001  # Laplace smoothing
+        self.smoothing = 1e-8  # Laplace smoothing
         self.emission = None
         self.transition = None
         self.layerS = None
@@ -163,6 +168,8 @@ class VStructure:
                 neighbDim = np.sum(neighbourhoodStats[start:end, 0, :, :], axis=2)
                 neighbDim[neighbDim == 0] = 1
 
+                #print(np.reshape(self.transition, (1, self.L, self.A, self.C, self.C2)))
+
                 posterior_ulai = \
                     np.sum(np.multiply(np.reshape(self.transition, (1, self.L, self.A, self.C, self.C2)),
                                        np.reshape(neighbourhoodStats[start:end], (curr_batch_sz, self.L, self.A, 1, self.C2))),
@@ -172,11 +179,13 @@ class VStructure:
                     / np.reshape(neighbDim, (curr_batch_sz, 1, self.A, 1))
 
                 tmp_em = np.reshape(self.emission[target[start:end], :], (curr_batch_sz, 1, 1, self.C))
+
                 posterior_ulai = np.multiply(posterior_ulai, tmp_em)
 
                 # Normalize
                 norm_constant = np.reshape(np.sum(posterior_ulai, axis=(1, 2, 3)), (curr_batch_sz, 1, 1, 1))
                 norm_constant[norm_constant == 0] = 1
+
                 posterior_ulai = posterior_ulai / norm_constant
 
                 posterior_uli = np.sum(posterior_ulai, axis=2)
@@ -360,3 +369,4 @@ class VStructure:
 
         return predicted, best_states, \
                np.reshape(predictionStats[:, 0, :, :], (len(adjacency_lists), 1, self.A, self.C2))
+
